@@ -1,0 +1,2 @@
+class BadConfigurationException(Exception):
+    pass
