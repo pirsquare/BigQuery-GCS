@@ -109,9 +109,7 @@ class Exporter(object):
 
         # raise exceptions if job resource is still running after timeout
         if not self._is_job_resource_done(job_resource):
-            error_params = {"query": query, "dataset": dataset, "table": table}
-            raise BigQueryTimeoutException('BigQuery Timeout. query="{query}" dataset="{dataset}" ',
-                                           'table="{table}"'.format(**error_params))
+            raise BigQueryTimeoutException('BigQuery Timeout. query="%s"' % query)
 
         dataset_id = job_resource["configuration"]["query"]["destinationTable"]["datasetId"]
         table_id = job_resource["configuration"]["query"]["destinationTable"]["tableId"]
