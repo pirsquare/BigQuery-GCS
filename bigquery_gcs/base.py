@@ -96,6 +96,9 @@ class Exporter(object):
     def _delete_table(self, dataset, table):
         self.bq_client.delete_table(dataset, table)
 
+    def _is_job_resource_done(self, job_resource):
+        return job_resource['status']['state'] == u'DONE'
+
     def _write_to_table(self, dataset, table, query, write_disposition=JOB_WRITE_TRUNCATE, query_timeout=None):
         timeout = query_timeout or self.bq_default_query_timeout
         job = self.bq_client.write_to_table(query=query,
@@ -109,20 +112,21 @@ class Exporter(object):
 
         # raise exceptions if job resource is still running after timeout
         if not self._is_job_resource_done(job_resource):
-            raise BigQueryTimeoutException('BigQuery Timeout. query="%s"' % query)
+            raise BigQueryTimeoutException('BigQuery Timeout. job="query" query="%s"' % query)
 
         dataset_id = job_resource["configuration"]["query"]["destinationTable"]["datasetId"]
         table_id = job_resource["configuration"]["query"]["destinationTable"]["tableId"]
         return (dataset_id, table_id)
 
-    def _is_job_resource_done(self, job_resource):
-        return job_resource['status']['state'] == u'DONE'
-
     def _export_table_to_gcs(self, dataset, table, folder_name, file_name, export_timeout=None):
         timeout = export_timeout or self.bq_default_export_timeout
         gs_path = 'gs://%s/%s/%s.csv-parts-*' % (self.gcs_bucket_name, folder_name, file_name)
         job = self.bq_client.export_data_to_uris([gs_path], dataset, table, print_header=False)
-        self.bq_client.wait_for_job(job, timeout=timeout)
+        job_resource = self.bq_client.wait_for_job(job, timeout=timeout)
+
+        # raise exceptions if job resource is still running after timeout
+        if not self._is_job_resource_done(job_resource):
+            raise BigQueryTimeoutException('BigQuery Timeout. job="export" location="GCS"')
 
     def _delete_file(self, folder_name, file_name):
         file_path = '%s/%s.csv' % (folder_name, file_name)
