@@ -3,7 +3,7 @@ from boto.gs.bucket import Bucket
 from boto.gs.key import Key
 from bigquery.client import get_client, JOB_WRITE_TRUNCATE, JOB_CREATE_IF_NEEDED
 from . import utils
-from .exceptions import BadConfigurationException
+from .exceptions import BadConfigurationException, BigQueryTimeoutException
 
 
 CONTENT_TYPE_CSV = 'text/csv'
@@ -105,10 +105,20 @@ class Exporter(object):
                                             write_disposition=write_disposition,
                                             allow_large_results=True)
 
-        job_resp = self.bq_client.wait_for_job(job, timeout=timeout)
-        dataset_id = job_resp["configuration"]["query"]["destinationTable"]["datasetId"]
-        table_id = job_resp["configuration"]["query"]["destinationTable"]["tableId"]
+        job_resource = self.bq_client.wait_for_job(job, timeout=timeout)
+
+        # raise exceptions if job resource is still running after timeout
+        if not self._is_job_resource_done(job_resource):
+            error_params = {"query": query, "dataset": dataset, "table": table}
+            raise BigQueryTimeoutException('BigQuery Timeout. query="{query}" dataset="{dataset}" ',
+                                           'table="{table}"'.format(**error_params))
+
+        dataset_id = job_resource["configuration"]["query"]["destinationTable"]["datasetId"]
+        table_id = job_resource["configuration"]["query"]["destinationTable"]["tableId"]
         return (dataset_id, table_id)
+
+    def _is_job_resource_done(self, job_resource):
+        return job_resource['status']['state'] == u'DONE'
 
     def _export_table_to_gcs(self, dataset, table, folder_name, file_name, export_timeout=None):
         timeout = export_timeout or self.bq_default_export_timeout

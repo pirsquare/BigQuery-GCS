@@ -2,6 +2,7 @@ import unittest
 import mock
 from bigquery.client import JOB_WRITE_TRUNCATE, JOB_CREATE_IF_NEEDED, JOB_WRITE_APPEND
 from bigquery_gcs.base import Exporter, CONTENT_TYPE_CSV
+from bigquery_gcs.exceptions import BigQueryTimeoutException
 
 
 class TestExporter(unittest.TestCase):
@@ -78,12 +79,23 @@ class TestExporter(unittest.TestCase):
                         "tableId": "66"
                     }
                 }
+            },
+
+            'status': {
+                'state': 'RUNNING'
             }
         }
 
         mock_bq_client.write_to_table.return_value = "job"
         mock_bq_client.wait_for_job.return_value = job_resp
 
+        # should raise timeout exception
+        self.assertRaises(BigQueryTimeoutException, self.exporter._write_to_table,
+                          "dataset", "table", "query", "write_disposition")
+
+        # should run on success
+        job_resp['status']['state'] = 'DONE'
+        mock_bq_client.wait_for_job.return_value = job_resp
         dataset_id, table_id = self.exporter._write_to_table("dataset", "table", "query", "write_disposition")
 
         self.assertEquals(dataset_id, "55")
