@@ -7,7 +7,6 @@ Dealing with large query results isn't so [straightforward in BigQuery](https://
 3. Export temporary table data to GCS.
 4. Delete temporary table.
 
-
 ## Installation
 
     pip install bigquery-gcs
