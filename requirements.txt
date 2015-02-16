@@ -1,2 +1,2 @@
-bigquery-python
+bigquery-python>=0.1.1
 boto
