@@ -1,7 +1,7 @@
 from setuptools import find_packages
 from setuptools import setup
 
-VERSION = '0.0.2'
+VERSION = '0.0.3'
 
 setup_args = dict(
     name='BigQuery-GCS',
@@ -11,7 +11,7 @@ setup_args = dict(
     license='MIT',
     packages=find_packages(),
     include_package_data=True,
-    install_requires=['bigquery-python', 'boto'],
+    install_requires=['bigquery-python>=0.1.1', 'boto'],
     author='Ryan Liao',
     author_email='pirsquare.ryan@gmail.com',
     classifiers=[
