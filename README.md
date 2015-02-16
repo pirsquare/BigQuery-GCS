@@ -1,9 +1,9 @@
 # BigQuery-GCS
 [![Build Status](https://travis-ci.org/pirsquare/BigQuery-GCS.svg?branch=master)](https://travis-ci.org/pirsquare/BigQuery-GCS)
-Dealing with large query results isn't so [straightforward in BigQuery](https://cloud.google.com/bigquery/querying-data#largequeryresults) . This library provides wrapper to help you execute query with large results and export it to Goolge Cloud Storage for ease of accessibility. 
+Dealing with large query results isn't so [straightforward in BigQuery](https://cloud.google.com/bigquery/querying-data#largequeryresults) . This library provides wrapper to help you execute query with large results and export it to Goolge Cloud Storage for ease of accessibility.
 
 1. Run your query.
-2. Output results to a temporary table. 
+2. Output results to a temporary table.
 3. Export temporary table data to GCS.
 4. Delete temporary table.
 
@@ -12,7 +12,7 @@ Dealing with large query results isn't so [straightforward in BigQuery](https://
     pip install bigquery-gcs
 
 ## Examples
-<pre>
+```python
 from bigquery_gcs import Exporter
 
 config = {
@@ -37,5 +37,5 @@ file_name = "shakespeare_word" # Name for exported file in GCS
 
 # This will run query and export results to GCS
 exporter.query_and_export(query, dataset_temp, table_temp, folder_name, file_name)
-</pre>
+```
 
