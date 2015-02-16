@@ -2,8 +2,9 @@ import boto
 from boto.gs.bucket import Bucket
 from boto.gs.key import Key
 from bigquery.client import get_client, JOB_WRITE_TRUNCATE, JOB_CREATE_IF_NEEDED
+from bigquery.errors import BigQueryTimeoutException
 from . import utils
-from .exceptions import BadConfigurationException, BigQueryTimeoutException
+from .exceptions import BadConfigurationException
 
 
 CONTENT_TYPE_CSV = 'text/csv'
@@ -96,22 +97,21 @@ class Exporter(object):
     def _delete_table(self, dataset, table):
         self.bq_client.delete_table(dataset, table)
 
-    def _is_job_resource_done(self, job_resource):
-        return job_resource['status']['state'] == u'DONE'
-
     def _write_to_table(self, dataset, table, query, write_disposition=JOB_WRITE_TRUNCATE, query_timeout=None):
         timeout = query_timeout or self.bq_default_query_timeout
-        job = self.bq_client.write_to_table(query=query,
-                                            dataset=dataset,
-                                            table=table,
-                                            create_disposition=JOB_CREATE_IF_NEEDED,
-                                            write_disposition=write_disposition,
-                                            allow_large_results=True)
 
-        job_resource = self.bq_client.wait_for_job(job, timeout=timeout)
+        try:
+            job = self.bq_client.write_to_table(query=query,
+                                                dataset=dataset,
+                                                table=table,
+                                                create_disposition=JOB_CREATE_IF_NEEDED,
+                                                write_disposition=write_disposition,
+                                                allow_large_results=True)
 
-        # raise exceptions if job resource is still running after timeout
-        if not self._is_job_resource_done(job_resource):
+            job_resource = self.bq_client.wait_for_job(job, timeout=timeout)
+
+        # re-raise exceptions with details if job resource is still running after timeout
+        except BigQueryTimeoutException:
             raise BigQueryTimeoutException('BigQuery Timeout. job="query" query="%s"' % query)
 
         dataset_id = job_resource["configuration"]["query"]["destinationTable"]["datasetId"]
@@ -121,11 +121,13 @@ class Exporter(object):
     def _export_table_to_gcs(self, dataset, table, folder_name, file_name, export_timeout=None):
         timeout = export_timeout or self.bq_default_export_timeout
         gs_path = 'gs://%s/%s/%s.csv-parts-*' % (self.gcs_bucket_name, folder_name, file_name)
-        job = self.bq_client.export_data_to_uris([gs_path], dataset, table, print_header=False)
-        job_resource = self.bq_client.wait_for_job(job, timeout=timeout)
 
-        # raise exceptions if job resource is still running after timeout
-        if not self._is_job_resource_done(job_resource):
+        try:
+            job = self.bq_client.export_data_to_uris([gs_path], dataset, table, print_header=False)
+            job_resource = self.bq_client.wait_for_job(job, timeout=timeout)
+
+        # re-raise exceptions with details if job resource is still running after timeout
+        except BigQueryTimeoutException:
             raise BigQueryTimeoutException('BigQuery Timeout. job="export" location="GCS"')
 
     def _delete_file(self, folder_name, file_name):
