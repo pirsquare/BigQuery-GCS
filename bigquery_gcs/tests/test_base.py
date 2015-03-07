@@ -64,9 +64,15 @@ class TestExporter(unittest.TestCase):
 
         self.assertEquals(result, "expected")
 
+    @mock.patch.object(Exporter, "table_exist")
     @mock.patch.object(Exporter, "bq_client")
-    def test_delete_table(self, mock_bq_client):
-        self.exporter._delete_table("test", "test2")
+    def test_delete_table_if_exist(self, mock_bq_client, mock_table_exist):
+        mock_table_exist.return_value = True
+        self.exporter.delete_table_if_exist("test", "test2")
+        assert not mock_bq_client.delete_table.called
+
+        mock_table_exist.return_value = False
+        self.exporter.delete_table_if_exist("test", "test2")
         mock_bq_client.delete_table.assert_called_with("test", "test2")
 
     @mock.patch.object(Exporter, "bq_client")
@@ -90,7 +96,7 @@ class TestExporter(unittest.TestCase):
         mock_bq_client.wait_for_job.return_value = job_resp
 
         # should run on success
-        dataset_id, table_id = self.exporter._write_to_table("dataset", "table", "query", "write_disposition")
+        dataset_id, table_id = self.exporter.write_to_table("dataset", "table", "query", "write_disposition")
 
         self.assertEquals(dataset_id, "55")
         self.assertEquals(table_id, "66")

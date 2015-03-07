@@ -81,7 +81,7 @@ class Exporter(object):
         with open(filename) as f:
             return f.read()
 
-    def _dataset_exist(self, dataset):
+    def dataset_exist(self, dataset):
         """Given dataset name, check if dataset exist"""
         all_datasets = self.bq_client.get_datasets()
         if all_datasets:
@@ -90,14 +90,19 @@ class Exporter(object):
                     return True
         return False
 
-    def _get_or_create_dataset(self, dataset):
-        if not self._dataset_exist(dataset):
+    def table_exist(self, dataset, table):
+        """Given dataset and table name, check if table exist"""
+        return self.bq_client.check_table(dataset, table)
+
+    def get_or_create_dataset(self, dataset):
+        if not self.dataset_exist(dataset):
             self.bq_client.create_dataset(dataset)
 
-    def _delete_table(self, dataset, table):
-        self.bq_client.delete_table(dataset, table)
+    def delete_table_if_exist(self, dataset, table):
+        if not self.table_exist(dataset, table):
+            self.bq_client.delete_table(dataset, table)
 
-    def _write_to_table(self, dataset, table, query, write_disposition=JOB_WRITE_TRUNCATE, query_timeout=None):
+    def write_to_table(self, dataset, table, query, write_disposition=JOB_WRITE_TRUNCATE, query_timeout=None):
         timeout = query_timeout or self.bq_default_query_timeout
 
         try:
@@ -146,13 +151,14 @@ class Exporter(object):
         main_file = '%s.csv' % file_name
         main_file_path = '%s/%s' % (folder_name, main_file)
         bucket_path = '%s/%s' % (folder_name, file_name)
-        bucket_list = self.gcs_bucket.list(bucket_path)
 
-        # if main file doesnt exist, create an empty one. We need at least 2 files for composing
-        if main_file_path not in [key.name for key in bucket_list]:
-            contents = ''
-            new_object = Key(self.gcs_bucket, main_file_path)
-            new_object.set_contents_from_string(contents, {'content-type': CONTENT_TYPE_CSV}, replace=False)
+        # ensure that main file exist since we need at least 2 files for composing
+        contents = ''
+        new_object = Key(self.gcs_bucket, main_file_path)
+        new_object.set_contents_from_string(contents, {'content-type': CONTENT_TYPE_CSV}, replace=False)
+
+        # get list of bucket keys
+        bucket_list = self.gcs_bucket.list(bucket_path)
 
         # use a list to store list of keys in groups of 20. Like [[1...20], [21...40], [41...60]]
         list_of_key_list = list(utils.split_every(20, bucket_list))
@@ -169,7 +175,7 @@ class Exporter(object):
         # after compose, remove all parts file
         self._delete_file_parts(folder_name, file_name)
 
-    def _export(self, dataset_temp, table_temp, folder_name, file_name):
+    def export(self, dataset_temp, table_temp, folder_name, file_name):
         # before export, check and delete any existing file parts in google cloud storage
         self._delete_file_parts(folder_name, file_name)
 
@@ -208,14 +214,14 @@ class Exporter(object):
         """
 
         # get or create temp dataset
-        self._get_or_create_dataset(dataset_temp)
+        self.get_or_create_dataset(dataset_temp)
 
         # write to table. We need to use a table since "allowLargeResults=True" is only available
         # when you write to a table. Write truncate to clear any existing data if there is any
-        _dataset_id, _table_id = self._write_to_table(dataset_temp, table_temp, query, JOB_WRITE_TRUNCATE, query_timeout)
+        _dataset_id, _table_id = self.write_to_table(dataset_temp, table_temp, query, JOB_WRITE_TRUNCATE, query_timeout)
 
         # export temp table to GCS
-        self._export(dataset_temp, table_temp, folder_name, file_name)
+        self.export(dataset_temp, table_temp, folder_name, file_name)
 
         # delete temp table in bigquery once everything is complete
-        self._delete_table(dataset_temp, table_temp)
+        self.delete_table_if_exist(dataset_temp, table_temp)
