@@ -3,7 +3,7 @@ from setuptools import setup
 import io
 import os
 
-VERSION = '0.0.5'
+VERSION = '0.0.6'
 
 
 def fpath(name):
@@ -27,7 +27,6 @@ def get_requirements():
 setup_args = dict(
     name='BigQuery-GCS',
     description='Export Large Results from BigQuery to Google Cloud Storage',
-    long_description=read('README.md'),
     url='https://github.com/pirsquare/BigQuery-GCS',
     version=VERSION,
     license='MIT',
