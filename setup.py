@@ -3,7 +3,7 @@ from setuptools import setup
 import io
 import os
 
-VERSION = '0.0.6'
+VERSION = '0.0.7'
 
 
 def fpath(name):
