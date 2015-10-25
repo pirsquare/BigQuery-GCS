@@ -3,7 +3,7 @@ from setuptools import setup
 import io
 import os
 
-VERSION = '0.0.7'
+VERSION = '0.0.8'
 
 
 def fpath(name):
@@ -30,7 +30,7 @@ setup_args = dict(
     url='https://github.com/pirsquare/BigQuery-GCS',
     version=VERSION,
     license='MIT',
-    packages=find_packages(),
+    packages=find_packages(exclude=['tests']),
     include_package_data=True,
     install_requires=get_requirements(),
     author='Ryan Liao',
